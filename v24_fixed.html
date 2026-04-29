@@ -1,0 +1,2217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#09090b">
+<title>Poker Table v2.2 Fixed</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  html, body {
+    background: #09090b;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
+    height: 100%;
+    position: fixed;
+    width: 100%;
+  }
+  body { padding-top: env(safe-area-inset-top); }
+  input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; touch-action: auto; }
+  #root { height: 100dvh; width: 100vw; overflow: hidden; }
+
+  /* ───── felt and rim ───── */
+  .felt {
+    background:
+      radial-gradient(ellipse 70% 60% at 50% 35%, rgba(34,197,94,0.25) 0%, transparent 70%),
+      radial-gradient(ellipse at center, #166534 0%, #14532d 60%, #052e16 100%);
+    box-shadow:
+      inset 0 0 80px rgba(0,0,0,0.7),
+      inset 0 0 0 4px rgba(28,46,34,0.9),
+      0 18px 50px rgba(0,0,0,0.55);
+  }
+  .felt-rim {
+    background: linear-gradient(180deg, #4a3320 0%, #2a1a0c 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,200,140,0.2),
+      inset 0 -2px 4px rgba(0,0,0,0.5),
+      0 8px 24px rgba(0,0,0,0.5);
+  }
+
+  /* ───── glassmorphism panels ───── */
+  .glass {
+    background: linear-gradient(180deg, rgba(39,39,42,0.7) 0%, rgba(24,24,27,0.7) 100%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .glass-strong {
+    background: linear-gradient(180deg, rgba(39,39,42,0.92) 0%, rgba(15,15,18,0.95) 100%);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+
+  /* ───── Poker chip buttons ───── */
+  .chip-btn {
+    position: relative;
+    border-radius: 9999px;
+    box-shadow:
+      0 6px 0 rgba(0,0,0,0.45),
+      0 10px 24px rgba(0,0,0,0.5),
+      inset 0 2px 0 rgba(255,255,255,0.22),
+      inset 0 -3px 0 rgba(0,0,0,0.28);
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+  .chip-btn:active {
+    transform: translateY(3px);
+    box-shadow:
+      0 3px 0 rgba(0,0,0,0.45),
+      0 6px 12px rgba(0,0,0,0.4),
+      inset 0 2px 0 rgba(255,255,255,0.22),
+      inset 0 -3px 0 rgba(0,0,0,0.28);
+  }
+  .chip-btn[disabled] { opacity: 0.4; }
+  .chip-btn::before {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border-radius: 9999px;
+    border: 3px dashed rgba(255,255,255,0.55);
+  }
+  .chip-btn::after {
+    content: '';
+    position: absolute;
+    inset: 14px;
+    border-radius: 9999px;
+    background: rgba(0,0,0,0.18);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .chip-btn > * { position: relative; z-index: 2; }
+  .chip-call  { background: radial-gradient(circle at 30% 25%, #fcd34d 0%, #d97706 65%, #92400e 100%); }
+  .chip-raise { background: radial-gradient(circle at 30% 25%, #fb7185 0%, #dc2626 65%, #7f1d1d 100%); }
+  .chip-fold  { background: radial-gradient(circle at 30% 25%, #71717a 0%, #27272a 65%, #09090b 100%); }
+  .chip-check { background: radial-gradient(circle at 30% 25%, #93c5fd 0%, #2563eb 65%, #1e3a8a 100%); }
+
+  /* ───── Bet chip in front of player ───── */
+  .bet-chip {
+    background: radial-gradient(circle at 30% 25%, #fde68a 0%, #f59e0b 65%, #92400e 100%);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -1px 0 rgba(0,0,0,0.3);
+    border: 2px dashed rgba(255,255,255,0.6);
+  }
+  .dealer-btn {
+    background: radial-gradient(circle at 30% 25%, #ffffff 0%, #d4d4d8 100%);
+    color: #18181b;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.5);
+  }
+
+  /* ───── Card backs ───── */
+  .card-back {
+    background: white;
+    border: 1.5px solid #d4d4d8;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    position: relative;
+    overflow: hidden;
+  }
+  .card-back::before {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border-radius: 2px;
+    background: repeating-linear-gradient(45deg, #ef4444 0 3px, #991b1b 3px 6px);
+  }
+  .card-flip-in { animation: flipIn 0.5s cubic-bezier(.34,1.56,.64,1) backwards; }
+  @keyframes flipIn {
+    from { transform: rotateY(180deg) translateY(-12px); opacity: 0; }
+    to   { transform: rotateY(0deg) translateY(0); opacity: 1; }
+  }
+
+  /* ───── Active turn indicator ───── */
+  @keyframes pulseGlow {
+    0%, 100% {
+      box-shadow:
+        0 0 0 3px #fbbf24,
+        0 0 14px 4px rgba(251,191,36,0.85),
+        0 0 32px 6px rgba(251,191,36,0.45);
+    }
+    50% {
+      box-shadow:
+        0 0 0 3px #fde047,
+        0 0 22px 8px rgba(253,224,71,0.95),
+        0 0 50px 14px rgba(253,224,71,0.55);
+    }
+  }
+  .active-turn { animation: pulseGlow 1.4s ease-in-out infinite; }
+  @keyframes spotlight {
+    0%, 100% { opacity: 0.55; }
+    50%      { opacity: 0.95; }
+  }
+  .spotlight {
+    position: absolute;
+    width: 200%;
+    height: 200%;
+    left: -50%;
+    top: -50%;
+    background: radial-gradient(circle at center, rgba(251,191,36,0.45) 0%, rgba(251,191,36,0.15) 25%, transparent 55%);
+    pointer-events: none;
+    animation: spotlight 1.6s ease-in-out infinite;
+    z-index: 0;
+  }
+  @keyframes turnArrowBob {
+    0%, 100% { transform: translate(-50%, 0); }
+    50%      { transform: translate(-50%, 4px); }
+  }
+  .turn-arrow { animation: turnArrowBob 0.9s ease-in-out infinite; }
+
+  /* ───── Animations ───── */
+  @keyframes pop { 0%{transform:scale(1);} 40%{transform:scale(1.12);} 100%{transform:scale(1);} }
+  .anim-pop { animation: pop 0.4s ease-out; }
+  @keyframes slideUp { from{transform:translateY(40px); opacity:0;} to{transform:translateY(0); opacity:1;} }
+  .anim-slide { animation: slideUp 0.28s ease-out; }
+  @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+  .anim-fade { animation: fadeIn 0.18s ease-out; }
+  @keyframes phaseFlash {
+    0%   { opacity: 0; transform: scale(0.85); }
+    20%  { opacity: 1; transform: scale(1.05); }
+    80%  { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1); }
+  }
+  .anim-phase { animation: phaseFlash 1.6s ease-out forwards; }
+
+  /* ───── Confetti ───── */
+  @keyframes confettiFall {
+    0%   { transform: translate(var(--cx), -120vh) rotate(0deg); opacity: 0; }
+    8%   { opacity: 1; }
+    100% { transform: translate(calc(var(--cx) + var(--cdx)), 110vh) rotate(var(--crot)); opacity: 1; }
+  }
+  .confetti-piece {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 10px;
+    height: 14px;
+    border-radius: 2px;
+    will-change: transform, opacity;
+    animation: confettiFall var(--cdur) cubic-bezier(.2,.6,.4,1) forwards;
+  }
+
+  /* ───── Win glow text ───── */
+  @keyframes winGlow {
+    0%, 100% { text-shadow: 0 0 18px rgba(252,211,77,0.6), 0 0 36px rgba(252,211,77,0.4); }
+    50%      { text-shadow: 0 0 28px rgba(252,211,77,0.95), 0 0 60px rgba(252,211,77,0.65); }
+  }
+  .win-glow { animation: winGlow 1.6s ease-in-out infinite; }
+
+  /* ───── Chip popping in ───── */
+  @keyframes chipPop {
+    0%   { transform: translate(0,0) scale(0); opacity: 0; }
+    50%  { transform: translate(var(--px), var(--py)) scale(1.4); opacity: 1; }
+    100% { transform: translate(var(--px), var(--py)) scale(1); opacity: 1; }
+  }
+  .chip-pop {
+    position: absolute;
+    width: 22px; height: 22px;
+    border-radius: 9999px;
+    background: radial-gradient(circle at 30% 25%, #fde68a 0%, #f59e0b 65%, #92400e 100%);
+    border: 2px dashed rgba(255,255,255,0.7);
+    animation: chipPop var(--dur) cubic-bezier(.34,1.56,.64,1) both;
+    pointer-events: none;
+  }
+
+  /* ───── Spinning wheel ───── */
+  .wheel-tick {
+    position: absolute;
+    top: -2px; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 14px solid transparent;
+    border-right: 14px solid transparent;
+    border-top: 22px solid #facc15;
+    filter: drop-shadow(0 3px 4px rgba(0,0,0,0.6));
+    z-index: 5;
+  }
+
+  /* ───── Range slider ───── */
+  input[type=range] { -webkit-appearance: none; background: transparent; width: 100%; }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 10px;
+    background: linear-gradient(90deg, #f59e0b var(--fill,50%), #3f3f46 var(--fill,50%));
+    border-radius: 9999px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 36px; width: 36px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 25%, #fde68a 0%, #f59e0b 65%, #92400e 100%);
+    border: 3px dashed white;
+    margin-top: -13px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.6);
+    cursor: pointer;
+  }
+  input[type=range]::-moz-range-track {
+    height: 10px;
+    background: linear-gradient(90deg, #f59e0b var(--fill,50%), #3f3f46 var(--fill,50%));
+    border-radius: 9999px;
+  }
+  input[type=range]::-moz-range-thumb {
+    height: 36px; width: 36px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 25%, #fde68a 0%, #f59e0b 65%, #92400e 100%);
+    border: 3px dashed white;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.6);
+    cursor: pointer;
+  }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+  ::-webkit-scrollbar { width: 0; height: 0; }
+  .no-scrollbar { scrollbar-width: none; }
+
+  /* ───── Premium gradient buttons ───── */
+  .btn-primary {
+    background: linear-gradient(180deg, #22c55e 0%, #15803d 100%);
+    box-shadow: 0 6px 20px rgba(34,197,94,0.3), inset 0 1px 0 rgba(255,255,255,0.25);
+  }
+  .btn-primary:active { transform: translateY(1px); }
+  .btn-blue {
+    background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+    box-shadow: 0 4px 14px rgba(59,130,246,0.3), inset 0 1px 0 rgba(255,255,255,0.25);
+  }
+  .btn-blue:active { transform: translateY(1px); }
+  .btn-red {
+    background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
+    box-shadow: 0 4px 14px rgba(239,68,68,0.3), inset 0 1px 0 rgba(255,255,255,0.25);
+  }
+  .btn-red:active { transform: translateY(1px); }
+  .btn-dark {
+    background: linear-gradient(180deg, #3f3f46 0%, #18181b 100%);
+    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .btn-dark:active { transform: translateY(1px); }
+
+  /* ───── Phase banner ───── */
+  .phase-banner {
+    background: linear-gradient(180deg, rgba(252,211,77,0.95) 0%, rgba(245,158,11,0.95) 100%);
+    color: #18181b;
+    box-shadow: 0 8px 32px rgba(252,211,77,0.4), inset 0 1px 0 rgba(255,255,255,0.4);
+  }
+</style>
+</head>
+<body class="text-white">
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+const fmt = (n) => Math.round(Number(n) || 0).toLocaleString();
+const STREETS = ['preflop','flop','turn','river'];
+
+// ─── v2.1: persistence ───────────────────────────────────────────────────
+const STORAGE_KEY = 'pokerTrackerV21';
+const loadSaved = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (!s || s.phase === 'setup' || s.phase === 'gameover') return null;
+    return s;
+  } catch { return null; }
+};
+const saveState = (s) => {
+  try {
+    if (!s || s.phase === 'setup') { localStorage.removeItem(STORAGE_KEY); return; }
+    const { modal, ...rest } = s;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
+  } catch {}
+};
+const clearSaved = () => { try { localStorage.removeItem(STORAGE_KEY); } catch {} };
+
+// ─── v2.1: Web-Audio sound engine ────────────────────────────────────────
+let audioCtx = null;
+const ensureAudio = () => {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch {}
+  }
+  if (audioCtx?.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+};
+const beep = (freq, dur, type='sine', vol=0.15, attack=0.005, decay=null) => {
+  const ctx = ensureAudio(); if (!ctx) return;
+  const o = ctx.createOscillator(); const g = ctx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0, ctx.currentTime);
+  g.gain.linearRampToValueAtTime(vol, ctx.currentTime + attack);
+  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (decay || dur));
+  o.connect(g).connect(ctx.destination);
+  o.start(); o.stop(ctx.currentTime + dur + 0.05);
+};
+const sfx = {
+  chip: () => { beep(880, 0.08, 'square', 0.08); setTimeout(() => beep(1320, 0.06, 'square', 0.06), 40); },
+  check: () => beep(440, 0.1, 'sine', 0.1),
+  fold: () => beep(180, 0.15, 'sawtooth', 0.08),
+  card: () => beep(2200, 0.04, 'sine', 0.05, 0.001, 0.04),
+  win: () => {
+    [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.18, 'triangle', 0.12), i * 90));
+  },
+  click: () => beep(600, 0.03, 'sine', 0.05, 0.001, 0.03),
+};
+let soundOn = true;
+try { soundOn = localStorage.getItem('pokerSoundOn') !== '0'; } catch {}
+const playSfx = (name) => { if (soundOn && sfx[name]) sfx[name](); };
+const setSoundOn = (v) => { soundOn = v; try { localStorage.setItem('pokerSoundOn', v ? '1' : '0'); } catch {} };
+
+const STREET_LABELS = { preflop:'Preflop', flop:'Flop', turn:'Turn', river:'River', showdown:'Showdown', handover:'Hand Over' };
+const STREET_CARDS = { preflop:0, flop:3, turn:4, river:5, showdown:5, handover:5 };
+const PG = [
+  'from-rose-500 to-rose-700',
+  'from-sky-500 to-sky-700',
+  'from-emerald-500 to-emerald-700',
+  'from-violet-500 to-violet-700',
+  'from-amber-500 to-amber-700',
+  'from-pink-500 to-pink-700',
+  'from-cyan-500 to-cyan-700',
+  'from-orange-500 to-orange-700',
+  'from-indigo-500 to-indigo-700',
+];
+const CONFETTI_COLORS = ['#fbbf24','#f43f5e','#22c55e','#3b82f6','#a855f7','#ec4899','#06b6d4','#facc15'];
+
+// ─── engine helpers ──────────────────────────────────────────────────────
+function nextDealtIn(players, fromIdx) {
+  const n = players.length;
+  for (let i = 1; i <= n; i++) {
+    const idx = (fromIdx + i) % n;
+    if (!players[idx].sittingOut) return idx;
+  }
+  return -1;
+}
+function nextActive(players, fromIdx) {
+  const n = players.length;
+  for (let i = 1; i <= n; i++) {
+    const idx = (fromIdx + i) % n;
+    const p = players[idx];
+    if (!p.sittingOut && !p.hasFolded && !p.isAllIn) return idx;
+  }
+  return -1;
+}
+function roundComplete(players, currentBet) {
+  const canAct = players.filter(p => !p.sittingOut && !p.hasFolded && !p.isAllIn);
+  if (canAct.length === 0) return true;
+  return canAct.every(p => p.hasActedThisRound && p.currentBet === currentBet);
+}
+function calcSidePots(players) {
+  const contribs = players.filter(p => p.totalCommittedHand > 0)
+    .map(p => ({ id: p.id, amount: p.totalCommittedHand, folded: p.hasFolded }));
+  if (!contribs.length) return [];
+  const levels = [...new Set(contribs.map(c => c.amount))].sort((a,b) => a-b);
+  let prev = 0;
+  const pots = [];
+  for (const lvl of levels) {
+    const c = contribs.filter(x => x.amount >= lvl);
+    const tier = (lvl - prev) * c.length;
+    if (tier > 0) {
+      const eligible = c.filter(x => !x.folded).map(x => x.id);
+      const last = pots[pots.length - 1];
+      const same = last && last.eligibleIds.length === eligible.length &&
+        last.eligibleIds.every(id => eligible.includes(id));
+      if (same) last.amount += tier;
+      else pots.push({ amount: tier, eligibleIds: eligible });
+    }
+    prev = lvl;
+  }
+  return pots.filter(p => p.eligibleIds.length > 0);
+}
+function playerIndexById(players, id) {
+  return id ? players.findIndex(p => p.id === id) : -1;
+}
+function dealerAnchorForNextHand(state, nextPlayers) {
+  if (!nextPlayers.length) return 0;
+  const oldDealer = state.players[state.dealerIdx];
+  const sameDealerIdx = playerIndexById(nextPlayers, oldDealer?.id);
+  if (sameDealerIdx >= 0) return sameDealerIdx;
+  const keptBeforeOldDealer = state.players
+    .slice(0, Math.max(0, state.dealerIdx))
+    .filter(oldP => nextPlayers.some(np => np.id === oldP.id)).length;
+  return keptBeforeOldDealer - 1;
+}
+function remapIndexesAfterPlayerListChange(state, nextPlayers) {
+  const safeIdx = (oldIdx) => {
+    if (!nextPlayers.length) return 0;
+    const oldPlayer = state.players[oldIdx];
+    const sameIdx = playerIndexById(nextPlayers, oldPlayer?.id);
+    if (sameIdx >= 0) return sameIdx;
+    return Math.min(Math.max(0, oldIdx), nextPlayers.length - 1);
+  };
+  return {
+    ...state,
+    players: nextPlayers,
+    dealerIdx: dealerAnchorForNextHand(state, nextPlayers),
+    sbIdx: safeIdx(state.sbIdx),
+    bbIdx: safeIdx(state.bbIdx),
+    turnIdx: safeIdx(state.turnIdx),
+  };
+}
+function startHand(state, isFirst) {
+  let handState = state;
+  if (!isFirst && state.players.some(p => p.requestRemove)) {
+    const nextPlayers = state.players.filter(p => !p.requestRemove);
+    handState = remapIndexesAfterPlayerListChange(state, nextPlayers);
+  }
+
+  const players = handState.players.map(p => ({
+    ...p,
+    currentBet: 0, totalCommittedHand: 0,
+    hasFolded: false, isAllIn: false,
+    hasActedThisRound: false, lastAction: null,
+    sittingOut: p.balance <= 0 || p.requestSitOut === true,
+    requestSitOut: false,
+    requestRemove: false,
+  }));
+  const dealtIn = players.filter(p => !p.sittingOut);
+  if (dealtIn.length < 2) return { ...handState, players, phase: 'gameover' };
+
+  let dealerIdx;
+  if (isFirst) {
+    dealerIdx = handState.initialDealerIdx;
+    if (dealerIdx == null || dealerIdx < 0 || players[dealerIdx]?.sittingOut) {
+      dealerIdx = nextDealtIn(players, dealerIdx ?? -1);
+    }
+  } else {
+    dealerIdx = nextDealtIn(players, handState.dealerIdx);
+  }
+
+  let sbIdx, bbIdx;
+  if (dealtIn.length === 2) {
+    sbIdx = dealerIdx;
+    bbIdx = nextDealtIn(players, dealerIdx);
+  } else {
+    sbIdx = nextDealtIn(players, dealerIdx);
+    bbIdx = nextDealtIn(players, sbIdx);
+  }
+
+  const lvl = handState.blindLevels[handState.blindLevelIdx] || handState.blindLevels.at(-1);
+  const sbAmt = Math.min(lvl.small, players[sbIdx].balance);
+  players[sbIdx] = {
+    ...players[sbIdx],
+    balance: players[sbIdx].balance - sbAmt,
+    currentBet: sbAmt, totalCommittedHand: sbAmt,
+    isAllIn: players[sbIdx].balance - sbAmt === 0,
+  };
+  const bbAmt = Math.min(lvl.big, players[bbIdx].balance);
+  players[bbIdx] = {
+    ...players[bbIdx],
+    balance: players[bbIdx].balance - bbAmt,
+    currentBet: bbAmt, totalCommittedHand: bbAmt,
+    isAllIn: players[bbIdx].balance - bbAmt === 0,
+  };
+
+  const firstToAct = dealtIn.length === 2 ? sbIdx : nextActive(players, bbIdx);
+  const newHandNum = handState.handsPlayed + 1;
+  const newLog = [...(handState.actionLog || []), {
+    type: 'hand_start', hand: newHandNum, dealer: players[dealerIdx].name,
+    sb: { name: players[sbIdx].name, amount: sbAmt },
+    bb: { name: players[bbIdx].name, amount: bbAmt },
+    blindLevel: handState.blindLevelIdx + 1,
+  }];
+
+  return {
+    ...handState, players,
+    dealerIdx, sbIdx, bbIdx, turnIdx: firstToAct,
+    pot: 0, currentBet: bbAmt, minRaiseAmount: lvl.big,
+    lastRaiserIdx: bbIdx,
+    street: 'preflop', phase: 'game',
+    handsPlayed: newHandNum,
+    showdownData: null, handoverData: null,
+    streetAnimKey: (handState.streetAnimKey || 0) + 1,
+    actionLog: newLog,
+  };
+}
+function endHandSinglePlayer(state) {
+  const collected = state.players.reduce((s,p) => s + p.currentBet, 0);
+  const totalPot = state.pot + collected;
+  let players = state.players.map(p => ({ ...p, currentBet: 0 }));
+  const winnerIdx = players.findIndex(p => !p.hasFolded && !p.sittingOut);
+  if (winnerIdx >= 0) {
+    players[winnerIdx] = { ...players[winnerIdx], balance: players[winnerIdx].balance + totalPot };
+  }
+  return { ...state, players, pot: 0, phase: 'handover',
+    handoverData: { winnerIds: [players[winnerIdx]?.id], amount: totalPot, reason: 'fold' } };
+}
+function advanceStreet(state) {
+  const collected = state.players.reduce((s,p) => s + p.currentBet, 0);
+  let players = state.players.map(p => ({
+    ...p, currentBet: 0, hasActedThisRound: false, lastAction: null,
+  }));
+  const idx = STREETS.indexOf(state.street);
+  const next = STREETS[idx + 1];
+  const newPot = state.pot + collected;
+  if (!next) return goToShowdown({ ...state, players, pot: newPot, currentBet: 0, street: 'river' });
+
+  const canBet = players.filter(p => !p.sittingOut && !p.hasFolded && !p.isAllIn);
+  if (canBet.length < 2) {
+    return advanceStreet({ ...state, players, pot: newPot, currentBet: 0, street: next,
+      streetAnimKey: (state.streetAnimKey || 0) + 1 });
+  }
+  return {
+    ...state, players,
+    pot: newPot, currentBet: 0,
+    minRaiseAmount: state.blindLevels[state.blindLevelIdx]?.big || 10,
+    lastRaiserIdx: null, street: next,
+    turnIdx: nextActive(players, state.dealerIdx),
+    streetAnimKey: (state.streetAnimKey || 0) + 1,
+  };
+}
+function goToShowdown(state) {
+  const pots = calcSidePots(state.players);
+  return { ...state, phase:'showdown', showdownData: { pots, awards: pots.map(() => []) },
+    streetAnimKey: (state.streetAnimKey || 0) + 1 };
+}
+function processAfter(state) {
+  const remaining = state.players.filter(p => !p.hasFolded && !p.sittingOut);
+  if (remaining.length <= 1) return endHandSinglePlayer(state);
+  if (roundComplete(state.players, state.currentBet)) return advanceStreet(state);
+  return { ...state, turnIdx: nextActive(state.players, state.turnIdx) };
+}
+
+// ─── initial state ───────────────────────────────────────────────────────
+const initialState = {
+  phase: 'setup',
+  startingChips: 1000,
+  blindLevels: [
+    { big: 10, small: 5,  duration: 20 },
+    { big: 20, small: 10, duration: 20 },
+    { big: 40, small: 20, duration: 20 },
+  ],
+  durationUnit: 'Minutes',
+  initialDealerIdx: 0,
+  randomDealer: true,
+  players: [],
+  dealerIdx: 0, sbIdx: 0, bbIdx: 0, turnIdx: 0,
+  pot: 0, currentBet: 0, minRaiseAmount: 0, lastRaiserIdx: null,
+  blindLevelIdx: 0, timeRemainingSec: 0, handsPlayed: 0,
+  street: 'preflop',
+  history: [],
+  showdownData: null, handoverData: null,
+  modal: null, streetAnimKey: 0,
+};
+
+// ─── App ─────────────────────────────────────────────────────────────────
+function App() {
+  const [state, setState] = useState(initialState);
+
+  useEffect(() => {
+    if (state.phase === 'setup' || state.phase === 'gameover') return;
+    if (state.durationUnit !== 'Minutes' || state.timeRemainingSec <= 0) return;
+    const id = setInterval(() => {
+      setState(s => {
+        if (s.phase === 'setup' || s.phase === 'gameover') return s;
+        if (s.timeRemainingSec <= 1) {
+          if (s.blindLevelIdx < s.blindLevels.length - 1) {
+            const ni = s.blindLevelIdx + 1;
+            return { ...s, blindLevelIdx: ni, timeRemainingSec: (s.blindLevels[ni]?.duration || 0) * 60 };
+          }
+          return { ...s, timeRemainingSec: 0 };
+        }
+        return { ...s, timeRemainingSec: s.timeRemainingSec - 1 };
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [state.phase, state.durationUnit, state.timeRemainingSec]);
+
+  const pushAction = useCallback((updater) => {
+    setState(s => {
+      const snap = { ...s, history: undefined, modal: null };
+      const next = updater(s);
+      return { ...next, history: [...(s.history || []), snap].slice(-50) };
+    });
+  }, []);
+  const undo = () => setState(s => {
+    if (!s.history?.length) return s;
+    const last = s.history[s.history.length - 1];
+    return { ...last, history: s.history.slice(0, -1) };
+  });
+
+  function startGame(setup) {
+    const players = setup.seatedPlayers.map((name, i) => ({
+      id: 'p'+i+'_'+Math.random().toString(36).slice(2,7),
+      name, balance: setup.startingChips,
+      currentBet: 0, totalCommittedHand: 0,
+      hasFolded: false, isAllIn: false,
+      hasActedThisRound: false, lastAction: null,
+      sittingOut: false, colorIdx: i % PG.length,
+      buyIns: 1,
+    }));
+    const fresh = {
+      ...initialState,
+      ...setup,
+      players,
+      blindLevelIdx: 0,
+      timeRemainingSec: (setup.blindLevels[0]?.duration || 0) * 60,
+      handsPlayed: 0,
+      history: [],
+    };
+    setState(startHand(fresh, true));
+  }
+
+  const fold = () => pushAction(s => {
+    const players = s.players.map((p,i) => i === s.turnIdx
+      ? { ...p, hasFolded:true, hasActedThisRound:true, lastAction:'Fold' } : p);
+    return processAfter({ ...s, players });
+  });
+  const check = () => pushAction(s => {
+    const players = s.players.map((p,i) => i === s.turnIdx
+      ? { ...p, hasActedThisRound:true, lastAction:'Check' } : p);
+    return processAfter({ ...s, players });
+  });
+  const call = () => pushAction(s => {
+    const p = s.players[s.turnIdx];
+    const amt = Math.min(s.currentBet - p.currentBet, p.balance);
+    const players = s.players.map((pl,i) => i === s.turnIdx ? {
+      ...pl,
+      balance: pl.balance - amt,
+      currentBet: pl.currentBet + amt,
+      totalCommittedHand: pl.totalCommittedHand + amt,
+      hasActedThisRound: true,
+      isAllIn: pl.balance - amt === 0,
+      lastAction: amt === 0 ? 'Check' : 'Call',
+    } : pl);
+    return processAfter({ ...s, players });
+  });
+  const raise = (totalBet) => pushAction(s => {
+    const p = s.players[s.turnIdx];
+    const additional = totalBet - p.currentBet;
+    if (additional <= 0 || additional > p.balance) return s;
+    const raiseSize = totalBet - s.currentBet;
+    const isOpen = s.currentBet === 0;
+    const isAllIn = p.balance - additional === 0;
+    const newMin = Math.max(s.minRaiseAmount, raiseSize);
+    const players = s.players.map((pl,i) => {
+      if (i === s.turnIdx) return {
+        ...pl, balance: pl.balance - additional, currentBet: totalBet,
+        totalCommittedHand: pl.totalCommittedHand + additional,
+        hasActedThisRound: true, isAllIn,
+        lastAction: isOpen ? 'Bet' : 'Raise',
+      };
+      if (!pl.hasFolded && !pl.isAllIn && !pl.sittingOut) return { ...pl, hasActedThisRound: false };
+      return pl;
+    });
+    return processAfter({ ...s, players, currentBet: totalBet, minRaiseAmount: newMin, lastRaiserIdx: s.turnIdx });
+  });
+
+  const awardShowdown = (awards) => pushAction(s => {
+    const pots = s.showdownData.pots;
+    let players = [...s.players];
+    let totalAwarded = 0;
+    for (let i = 0; i < pots.length; i++) {
+      const winners = (awards[i]?.length > 0) ? awards[i] : pots[i].eligibleIds;
+      if (!winners.length) continue;
+      const each = Math.floor(pots[i].amount / winners.length);
+      const rem = pots[i].amount - each * winners.length;
+      players = players.map(p => {
+        if (!winners.includes(p.id)) return p;
+        const isFirst = winners[0] === p.id;
+        return { ...p, balance: p.balance + each + (isFirst ? rem : 0) };
+      });
+      totalAwarded += pots[i].amount;
+    }
+    return { ...s, players, pot: 0, phase: 'handover', showdownData: null,
+      handoverData: { reason: 'showdown', amount: totalAwarded, awards, pots } };
+  });
+
+  const nextHand = () => pushAction(s => {
+    const remainingPlayers = s.players.filter(p => !p.requestRemove);
+    const haveChips = remainingPlayers.filter(p => p.balance > 0);
+    if (haveChips.length < 2) return { ...s, players: remainingPlayers, phase: 'gameover' };
+    return startHand(s, false);
+  });
+
+  const rebuy = (playerId, amount) => pushAction(s => {
+    if (amount <= 0) return s;
+    const liveHand = s.phase === 'game' || s.phase === 'showdown';
+    const players = s.players.map(p => {
+      if (p.id !== playerId) return p;
+      // If a busted/sitting-out player buys in while a hand is live, give the chips
+      // but keep that player OUT of the current hand. startHand() will seat them next hand.
+      const mustWaitNextHand = liveHand && p.sittingOut;
+      return {
+        ...p,
+        balance: p.balance + amount,
+        buyIns: (p.buyIns || 1) + 1,
+        sittingOut: mustWaitNextHand ? true : false,
+        requestSitOut: false,
+      };
+    });
+    return { ...s, players, modal: null };
+  });
+
+  const addTablePlayer = (name, amount) => pushAction(s => {
+    const cleanName = String(name || '').trim().slice(0, 14);
+    const buyIn = Math.max(1, Math.round(Number(amount) || s.startingChips || 1));
+    const duplicateName = s.players.some(p => p.name.trim().toLowerCase() === cleanName.toLowerCase());
+    if (!cleanName || duplicateName || s.players.length >= 9) return s;
+
+    const liveHand = s.phase === 'game' || s.phase === 'showdown';
+    const newPlayer = {
+      id: 'p'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7),
+      name: cleanName,
+      balance: buyIn,
+      currentBet: 0, totalCommittedHand: 0,
+      hasFolded: false, isAllIn: false,
+      hasActedThisRound: true, lastAction: null,
+      sittingOut: liveHand,
+      requestSitOut: false,
+      requestRemove: false,
+      colorIdx: s.players.length % PG.length,
+      buyIns: 1,
+    };
+    return { ...s, players: [...s.players, newPlayer], modal: null };
+  });
+
+  const removeTablePlayer = (playerId) => pushAction(s => {
+    const player = s.players.find(p => p.id === playerId);
+    if (!player) return s;
+    const liveHand = s.phase === 'game' || s.phase === 'showdown';
+
+    if (liveHand) {
+      const players = s.players.map(p => p.id === playerId
+        ? { ...p, requestRemove: true, requestSitOut: true }
+        : p);
+      return { ...s, players, modal: null };
+    }
+
+    const players = s.players.filter(p => p.id !== playerId);
+    if (players.length < 2) return { ...s, players, modal: null, phase: 'gameover' };
+    return { ...remapIndexesAfterPlayerListChange(s, players), modal: null };
+  });
+
+  if (state.phase === 'setup') return <SetupScreen onStart={startGame}/>;
+  if (state.phase === 'gameover') return <GameOver state={state} onReset={() => setState(initialState)}/>;
+
+  return (
+    <GameScreen
+      state={state}
+      onFold={fold} onCheck={check} onCall={call} onRaise={raise}
+      onUndo={undo} onAward={awardShowdown} onNext={nextHand}
+      onMenu={() => setState(s => ({ ...s, modal: 'menu' }))}
+      onPlayerTap={(playerId) => setState(s => ({ ...s, modal: { type: 'manage', playerId } }))}
+      onCloseModal={() => setState(s => ({ ...s, modal: null }))}
+      onAbandon={() => setState(initialState)}
+      onRebuy={rebuy}
+      onAddPlayer={addTablePlayer}
+      onRemovePlayer={removeTablePlayer}
+    />
+  );
+}
+
+// ─── Setup ────────────────────────────────────────────────────────────────
+function SetupScreen({ onStart }) {
+  const [step, setStep] = useState('config');
+  const [startingChips, setStartingChips] = useState(1000);
+  const [blindLevels, setBlindLevels] = useState([
+    { big: 10, small: 5,  duration: '' },
+    { big: 20, small: 10, duration: '' },
+    { big: 40, small: 20, duration: '' },
+  ]);
+  const [durationUnit, setDurationUnit] = useState('Minutes');
+  const [playerNames, setPlayerNames] = useState([]);
+  const [seats, setSeats] = useState([]); // 9 slots, each null or name
+  const [randomDealer, setRandomDealer] = useState(true);
+  const [initialDealerIdx, setInitialDealerIdx] = useState(0);
+  const [nameInput, setNameInput] = useState('');
+  const [seatModal, setSeatModal] = useState(null);
+  const [spinning, setSpinning] = useState(false);
+  const inputRef = useRef(null);
+
+  const addLevel = () => {
+    const last = blindLevels.at(-1) || { big:10, small:5, duration:'' };
+    setBlindLevels([...blindLevels, { big:Number(last.big)*2, small:Number(last.small)*2, duration:'' }]);
+  };
+  const removeLevel = (i) => setBlindLevels(blindLevels.filter((_,j)=>j!==i));
+  const updateLevel = (i,f,v) => setBlindLevels(blindLevels.map((l,j)=>j===i?{...l,[f]:v}:l));
+
+  const addPlayer = () => {
+    const n = nameInput.trim().slice(0,14);
+    if (!n || playerNames.length >= 9 || playerNames.includes(n)) return;
+    setPlayerNames([...playerNames, n]);
+    setNameInput('');
+    setTimeout(() => inputRef.current?.focus(), 30);
+  };
+  const removePlayer = (i) => {
+    const name = playerNames[i];
+    setPlayerNames(playerNames.filter((_,j)=>j!==i));
+    setSeats(seats.map(s => s === name ? null : s));
+  };
+
+  const validLevels = blindLevels.filter(l => Number(l.big) > 0 && Number(l.small) > 0);
+  const canProceed = playerNames.length >= 2 && startingChips > 0 && validLevels.length >= 1;
+
+  const goToSeating = () => {
+    const numSeats = Math.max(playerNames.length, 6);
+    const initial = Array(Math.min(9, Math.max(2, numSeats))).fill(null);
+    // try to preserve any prior seating that's still valid
+    const preserved = seats.length ? seats.map(s => playerNames.includes(s) ? s : null) : initial;
+    while (preserved.length < initial.length) preserved.push(null);
+    setSeats(preserved.slice(0, initial.length));
+    setStep('seating');
+  };
+
+  const seatedPlayers = seats.filter(Boolean);
+  const allSeated = seatedPlayers.length === playerNames.length && playerNames.every(p => seats.includes(p));
+  const canStart = allSeated && seatedPlayers.length >= 2;
+
+  const assignSeat = (seatIdx, name) => {
+    setSeats(seats.map((s, i) => {
+      if (i === seatIdx) return name;
+      if (s === name) return null; // remove from old seat
+      return s;
+    }));
+    setSeatModal(null);
+  };
+  const clearSeat = (i) => setSeats(seats.map((s,j) => j===i ? null : s));
+
+  const addSeatSlot = () => { if (seats.length < 9) setSeats([...seats, null]); };
+  const removeSeatSlot = (i) => {
+    if (seats.length <= 2) return;
+    setSeats(seats.filter((_,j) => j!==i));
+  };
+
+  const handleStart = () => {
+    if (!canStart) return;
+    if (randomDealer) {
+      setSpinning(true);
+    } else {
+      const dealerName = seatedPlayers[initialDealerIdx % seatedPlayers.length];
+      const seatedFinal = seats.filter(Boolean);
+      const dealerSeatedIdx = seatedFinal.indexOf(dealerName);
+      finishStart(seatedFinal, dealerSeatedIdx);
+    }
+  };
+  const finishStart = (sp, dealerIdx) => {
+    onStart({
+      startingChips: Number(startingChips),
+      blindLevels: validLevels.map(l => ({
+        big: Number(l.big), small: Number(l.small), duration: Number(l.duration) || 0,
+      })),
+      durationUnit,
+      seatedPlayers: sp,
+      initialDealerIdx: dealerIdx,
+      randomDealer,
+    });
+  };
+
+  return (
+    <div className="h-[100dvh] w-screen overflow-y-auto no-scrollbar bg-zinc-950 text-white relative">
+      <div className="max-w-md mx-auto px-4 pb-32">
+        {/* header */}
+        <div className="flex items-center justify-between py-3 mb-1 sticky top-0 bg-zinc-950 z-30">
+          <button
+            onClick={() => step === 'seating' ? setStep('config') : null}
+            className={`w-9 h-9 rounded-full flex items-center justify-center text-zinc-400 ${step==='seating'?'active:bg-zinc-800':''}`}
+          >
+            {step === 'seating' && (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                <path d="M15 18l-6-6 6-6"/>
+              </svg>
+            )}
+          </button>
+          <h1 className="text-xl font-bold">{step === 'config' ? 'Play' : 'Seating'}</h1>
+          <div className="w-9 h-9"/>
+        </div>
+
+        {step === 'config' && (
+          <ConfigStep
+            startingChips={startingChips} setStartingChips={setStartingChips}
+            blindLevels={blindLevels} addLevel={addLevel} removeLevel={removeLevel} updateLevel={updateLevel}
+            durationUnit={durationUnit} setDurationUnit={setDurationUnit}
+            playerNames={playerNames} nameInput={nameInput} setNameInput={setNameInput}
+            addPlayer={addPlayer} removePlayer={removePlayer} inputRef={inputRef}
+          />
+        )}
+
+        {step === 'seating' && (
+          <SeatingStep
+            seats={seats} playerNames={playerNames}
+            randomDealer={randomDealer} setRandomDealer={setRandomDealer}
+            initialDealerIdx={initialDealerIdx} setInitialDealerIdx={setInitialDealerIdx}
+            onSeatTap={(i) => setSeatModal(i)}
+            clearSeat={clearSeat}
+            addSeatSlot={addSeatSlot}
+            removeSeatSlot={removeSeatSlot}
+          />
+        )}
+      </div>
+
+      {/* bottom CTA */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-zinc-950 via-zinc-950 to-zinc-950/0 pb-4 pt-8 z-20">
+        <div className="max-w-md mx-auto px-4" style={{paddingBottom:'env(safe-area-inset-bottom)'}}>
+          {step === 'config' ? (
+            <button
+              onClick={goToSeating}
+              disabled={!canProceed}
+              className={`w-full py-4 rounded-2xl text-lg font-black tracking-wide transition ${
+                canProceed ? 'btn-primary text-white active:scale-[0.98]' : 'bg-zinc-800 text-zinc-600'
+              }`}
+            >
+              {playerNames.length < 2 ? `Need ${2 - playerNames.length} more player${playerNames.length===1?'':'s'}` : 'Continue → Seating'}
+            </button>
+          ) : (
+            <button
+              onClick={handleStart}
+              disabled={!canStart}
+              className={`w-full py-4 rounded-2xl text-lg font-black tracking-wide transition ${
+                canStart ? 'btn-primary text-white active:scale-[0.98]' : 'bg-zinc-800 text-zinc-600'
+              }`}
+            >
+              {!canStart ? `Seat all ${playerNames.length} players` : (randomDealer ? '🎲 Spin for Dealer' : 'Start Game')}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {seatModal !== null && (
+        <SeatPickerModal
+          seatIdx={seatModal}
+          seats={seats}
+          playerNames={playerNames}
+          onPick={assignSeat}
+          onClose={() => setSeatModal(null)}
+        />
+      )}
+
+      {spinning && (
+        <DealerWheel
+          players={seats.filter(Boolean)}
+          onComplete={(idx) => { setSpinning(false); finishStart(seats.filter(Boolean), idx); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ConfigStep({ startingChips, setStartingChips, blindLevels, addLevel, removeLevel, updateLevel, durationUnit, setDurationUnit, playerNames, nameInput, setNameInput, addPlayer, removePlayer, inputRef }) {
+  return (
+    <>
+      {/* starting chips */}
+      <div className="glass rounded-2xl p-3 mb-3">
+        <label className="block text-zinc-400 text-xs font-semibold mb-2 px-1">Starting chips</label>
+        <div className="flex items-center gap-2">
+          <input type="text" value={startingChips || ''}
+            onChange={e => setStartingChips(Math.max(0, parseInt(e.target.value.replace(/\D/g,'')) || 0))}
+            className="flex-1 min-w-0 bg-zinc-800/80 rounded-xl px-4 py-3 text-white text-center text-lg font-bold focus:outline-none border border-zinc-700 tabular-nums"
+            inputMode="numeric" pattern="[0-9]*" placeholder="1,000"/>
+          <div className="w-12 h-12 shrink-0 rounded-full btn-blue flex items-center justify-center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.6 1.6 0 0 0-1-1.4 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.6 1.6 0 0 0 1.4-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Blinds */}
+      <div className="glass rounded-2xl p-3 mb-3">
+        <label className="block text-zinc-400 text-xs font-semibold mb-2 px-1">Blind structure</label>
+        <div className="flex items-center justify-between mb-3 gap-2">
+          <button onClick={addLevel} className="btn-blue text-white px-4 py-2 rounded-xl text-sm font-bold active:scale-95 transition">+ Add level</button>
+          <div className="flex-1 max-w-[150px]">
+            <div className="text-zinc-500 text-[10px] font-semibold text-right mb-0.5">Duration unit</div>
+            <select value={durationUnit} onChange={e => setDurationUnit(e.target.value)}
+              className="w-full bg-zinc-800/80 text-white rounded-lg px-2 py-1.5 text-sm font-semibold focus:outline-none border border-zinc-700">
+              <option>Minutes</option><option>Hands</option>
+            </select>
+          </div>
+        </div>
+        <div className="grid gap-1.5 mb-1.5 text-[9px] text-zinc-500 font-black uppercase tracking-wide px-0.5" style={{gridTemplateColumns:'24px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 24px'}}>
+          <div className="text-center">Lvl</div><div className="text-center">Big</div><div className="text-center">Small</div><div className="text-center">Dur.</div><div></div>
+        </div>
+        <div className="space-y-1.5">
+          {blindLevels.map((l, i) => (
+            <div key={i} className="grid gap-1.5 items-center" style={{gridTemplateColumns:'24px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 24px'}}>
+              <div className="text-white font-bold text-center text-sm">{i+1}</div>
+              <input type="text" value={l.big} onChange={e => updateLevel(i,'big',e.target.value.replace(/\D/g,''))} className="min-w-0 bg-zinc-800/80 text-center rounded-lg px-1 py-2 text-white font-semibold focus:outline-none border border-zinc-700 text-sm tabular-nums" inputMode="numeric" pattern="[0-9]*"/>
+              <input type="text" value={l.small} onChange={e => updateLevel(i,'small',e.target.value.replace(/\D/g,''))} className="min-w-0 bg-zinc-800/80 text-center rounded-lg px-1 py-2 text-white font-semibold focus:outline-none border border-zinc-700 text-sm tabular-nums" inputMode="numeric" pattern="[0-9]*"/>
+              <input type="text" value={l.duration} onChange={e => updateLevel(i,'duration',e.target.value.replace(/\D/g,''))} className="min-w-0 bg-zinc-800/80 text-center rounded-lg px-1 py-2 text-white font-semibold focus:outline-none border border-zinc-700 text-sm tabular-nums" inputMode="numeric" pattern="[0-9]*" placeholder="—"/>
+              <button onClick={() => removeLevel(i)} className="w-6 h-6 rounded-full bg-red-500 active:bg-red-600 text-white text-[10px] flex items-center justify-center font-bold">✕</button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Players */}
+      <div className="mb-4">
+        <h2 className="text-2xl font-bold text-center mb-2">Players</h2>
+        <div className="glass rounded-2xl p-3">
+          <div className="flex gap-2 mb-2">
+            <input ref={inputRef} value={nameInput} onChange={e => setNameInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addPlayer()}
+              placeholder={`Player ${playerNames.length + 1}`}
+              className="flex-1 bg-zinc-800/80 rounded-xl px-4 py-3 text-white focus:outline-none border border-zinc-700"
+              maxLength={14} autoCapitalize="words"/>
+            <button onClick={addPlayer} disabled={!nameInput.trim() || playerNames.length >= 9}
+              className="px-5 rounded-xl btn-blue text-white font-bold disabled:opacity-40 disabled:bg-zinc-700">Add</button>
+          </div>
+          {playerNames.length > 0 && (
+            <div className="space-y-1.5">
+              {playerNames.map((name, i) => (
+                <div key={name} className="flex items-center gap-2 bg-zinc-800/60 rounded-xl pl-2 pr-2 py-1.5 anim-fade">
+                  <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${PG[i%PG.length]} flex items-center justify-center text-white text-xs font-bold shrink-0`}>{name[0]?.toUpperCase()}</div>
+                  <div className="flex-1 text-white font-semibold text-sm truncate">{name}</div>
+                  <button onClick={() => removePlayer(i)} className="w-7 h-7 rounded-full bg-red-500/20 text-red-400 text-xs font-bold flex items-center justify-center shrink-0">✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function SeatingStep({ seats, playerNames, randomDealer, setRandomDealer, initialDealerIdx, setInitialDealerIdx, onSeatTap, clearSeat, addSeatSlot, removeSeatSlot }) {
+  const seatedNames = seats.filter(Boolean);
+  const unseated = playerNames.filter(p => !seats.includes(p));
+  return (
+    <>
+      <div className="text-zinc-400 text-sm text-center mb-3">
+        Tap a seat to assign a player. Match your real-life seating order.
+      </div>
+
+      {/* Virtual table */}
+      <div className="relative mb-3 mx-auto" style={{aspectRatio:'4/3.6', maxWidth:'420px'}}>
+        <div className="absolute inset-2 felt-rim rounded-[50%] p-1.5">
+          <div className="w-full h-full felt rounded-[50%] relative">
+            {seats.map((name, i) => {
+              const n = seats.length;
+              const angle = -Math.PI/2 + (i/n) * 2 * Math.PI;
+              const x = 50 + Math.cos(angle) * 46;
+              const y = 50 + Math.sin(angle) * 44;
+              const colorIdx = name ? playerNames.indexOf(name) % PG.length : 0;
+              return (
+                <div key={i} className="absolute" style={{left:x+'%', top:y+'%', transform:'translate(-50%,-50%)'}}>
+                  <button onClick={() => onSeatTap(i)} className="block">
+                    {name ? (
+                      <div className={`bg-gradient-to-br ${PG[colorIdx]} text-white px-2 py-1 rounded-lg text-xs font-bold shadow-lg whitespace-nowrap`}>
+                        <div className="text-[9px] opacity-80 -mb-0.5">Seat {i+1}</div>
+                        {name}
+                      </div>
+                    ) : (
+                      <div className="bg-zinc-800/70 backdrop-blur border-2 border-dashed border-zinc-600 text-zinc-500 px-2 py-1 rounded-lg text-xs font-bold whitespace-nowrap min-w-[60px] text-center">
+                        <div className="text-[9px] opacity-80 -mb-0.5">Seat {i+1}</div>
+                        + Add
+                      </div>
+                    )}
+                  </button>
+                  {seats.length > 2 && (
+                    <button
+                      onClick={() => removeSeatSlot(i)}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-zinc-900 text-zinc-400 text-[10px] flex items-center justify-center border border-zinc-700"
+                      title="Remove seat"
+                    >✕</button>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* center label */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <div className="text-emerald-200/40 text-xs font-bold">{seatedNames.length}/{seats.length} seated</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-center mb-3">
+        <button onClick={addSeatSlot} disabled={seats.length >= 9}
+          className="btn-dark px-4 py-2 rounded-xl text-sm font-bold text-zinc-300 disabled:opacity-40">
+          + Add empty seat
+        </button>
+      </div>
+
+      {/* Unseated chips */}
+      {unseated.length > 0 && (
+        <div className="glass rounded-2xl p-3 mb-3">
+          <div className="text-zinc-400 text-xs font-semibold mb-2 px-1">Unseated players · tap a seat to place them</div>
+          <div className="flex flex-wrap gap-1.5">
+            {unseated.map(name => (
+              <div key={name} className={`bg-gradient-to-br ${PG[playerNames.indexOf(name) % PG.length]} text-white px-3 py-1.5 rounded-lg text-sm font-bold shadow-md`}>
+                {name}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Dealer choice */}
+      <div className="glass rounded-2xl p-3 mb-3">
+        <div className="text-zinc-400 text-xs font-semibold mb-2 px-1">Initial dealer</div>
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <button onClick={() => setRandomDealer(true)}
+            className={`py-3 rounded-xl font-bold transition ${randomDealer ? 'btn-blue text-white' : 'btn-dark text-zinc-300'}`}>
+            🎲 Random (spin)
+          </button>
+          <button onClick={() => setRandomDealer(false)}
+            className={`py-3 rounded-xl font-bold transition ${!randomDealer ? 'btn-blue text-white' : 'btn-dark text-zinc-300'}`}>
+            Pick manually
+          </button>
+        </div>
+        {!randomDealer && seatedNames.length > 0 && (
+          <div className="grid grid-cols-3 gap-1.5">
+            {seatedNames.map((name, i) => (
+              <button key={i} onClick={() => setInitialDealerIdx(i)}
+                className={`py-2 px-2 rounded-lg text-xs font-bold transition ${initialDealerIdx === i ? 'bg-yellow-400 text-zinc-900' : 'bg-zinc-800/60 text-zinc-300'}`}>
+                {initialDealerIdx === i && '🎯 '}{name}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function SeatPickerModal({ seatIdx, seats, playerNames, onPick, onClose }) {
+  const occupant = seats[seatIdx];
+  const available = playerNames.filter(p => !seats.includes(p) || p === occupant);
+  return (
+    <Modal onClose={onClose}>
+      <div className="text-center mb-3">
+        <div className="text-zinc-500 text-[10px] uppercase tracking-widest font-bold">Assign</div>
+        <div className="text-white text-xl font-bold">Seat {seatIdx + 1}</div>
+        {occupant && <div className="text-zinc-400 text-xs mt-1">Currently: <span className="text-white font-bold">{occupant}</span></div>}
+      </div>
+      <div className="space-y-2 mb-3 max-h-[50vh] overflow-y-auto">
+        {available.length === 0 ? (
+          <div className="text-center text-zinc-500 text-sm py-4">No players to seat. Add players in the previous step.</div>
+        ) : available.map((name, i) => {
+          const isCurrent = name === occupant;
+          return (
+            <button key={name} onClick={() => onPick(seatIdx, name)}
+              className={`w-full p-3 rounded-2xl flex items-center gap-3 transition border ${isCurrent ? 'bg-emerald-500/15 border-emerald-500/40' : 'bg-zinc-800/60 border-transparent active:scale-[0.99]'}`}>
+              <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${PG[playerNames.indexOf(name) % PG.length]} flex items-center justify-center text-white font-bold shadow-md`}>{name[0]?.toUpperCase()}</div>
+              <div className="flex-1 text-left">
+                <div className="text-white font-bold">{name}</div>
+                {isCurrent && <div className="text-emerald-400 text-xs">Currently here</div>}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {occupant && (
+          <button onClick={() => onPick(seatIdx, null)} className="py-3 rounded-2xl btn-red text-white font-bold">Clear seat</button>
+        )}
+        <button onClick={onClose} className={`py-3 rounded-2xl btn-dark text-zinc-200 font-bold ${occupant?'':'col-span-2'}`}>Cancel</button>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── Dealer Wheel ────────────────────────────────────────────────────────
+function DealerWheel({ players, onComplete }) {
+  const [rotation, setRotation] = useState(0);
+  const [chosen, setChosen] = useState(null);
+  const n = players.length;
+  const segAngle = 360 / n;
+
+  useEffect(() => {
+    const winnerIdx = Math.floor(Math.random() * n);
+    // Pointer is at top. CSS conic-gradient starts at 0° on top and transform rotate() is clockwise.
+    // Rotate the wheel so the selected segment center lands exactly under the top pointer.
+    const segCenter = (i) => i * segAngle + segAngle / 2;
+    const targetMod = (360 - segCenter(winnerIdx)) % 360;
+    const fullSpins = 5;
+    const finalRotation = fullSpins * 360 + targetMod;
+
+    // start spinning
+    const t = setTimeout(() => setRotation(finalRotation), 50);
+    const t2 = setTimeout(() => setChosen(winnerIdx), 4200);
+    const t3 = setTimeout(() => onComplete(winnerIdx), 5800);
+    return () => { clearTimeout(t); clearTimeout(t2); clearTimeout(t3); };
+  }, []);
+
+  // build conic gradient
+  const colors = ['#dc2626','#2563eb','#16a34a','#ca8a04','#9333ea','#db2777','#0891b2','#ea580c','#4f46e5'];
+  const stops = players.map((_, i) => {
+    const a = i * segAngle;
+    const b = (i+1) * segAngle;
+    return `${colors[i % colors.length]} ${a}deg ${b}deg`;
+  }).join(', ');
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/92 backdrop-blur-md flex flex-col items-center justify-center anim-fade px-4">
+      <div className="text-center mb-6">
+        <div className="text-white text-2xl font-black mb-1">Spinning for Dealer</div>
+        <div className="text-zinc-400 text-sm">{chosen != null ? `🎯 ${players[chosen]}!` : 'Good luck...'}</div>
+      </div>
+
+      <div className="relative" style={{width:'min(90vw, 360px)', aspectRatio:'1'}}>
+        {/* Pointer */}
+        <div className="wheel-tick"/>
+        {/* Outer ring */}
+        <div className="absolute inset-0 rounded-full" style={{
+          background: 'linear-gradient(180deg, #4a3320, #2a1a0c)',
+          padding: '12px',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.7), inset 0 2px 4px rgba(255,200,140,0.2)'
+        }}>
+          {/* Wheel */}
+          <div
+            className="w-full h-full rounded-full relative"
+            style={{
+              background: `conic-gradient(${stops})`,
+              transform: `rotate(${rotation}deg)`,
+              transition: 'transform 4.2s cubic-bezier(0.17, 0.67, 0.21, 1)',
+              boxShadow: 'inset 0 0 30px rgba(0,0,0,0.5)'
+            }}
+          >
+            {players.map((name, i) => {
+              const angle = i * segAngle + segAngle / 2;
+              return (
+                <div key={i} className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{transform:`rotate(${angle}deg)`}}>
+                  <div className="absolute left-1/2 top-3 -translate-x-1/2 origin-top text-white font-black text-sm whitespace-nowrap drop-shadow-lg" style={{paddingTop: '12%'}}>
+                    {name.length > 8 ? name.slice(0, 8) : name}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Center hub */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-gradient-to-br from-zinc-200 to-zinc-500 shadow-lg border-4 border-zinc-800 flex items-center justify-center">
+              <div className="text-zinc-900 font-black text-lg">D</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {chosen != null && (
+        <div className="mt-6 anim-pop">
+          <div className="phase-banner px-6 py-3 rounded-2xl">
+            <div className="text-xs font-bold text-zinc-700 text-center">DEALER</div>
+            <div className="text-2xl font-black text-zinc-900 text-center">{players[chosen]}</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Game Screen ─────────────────────────────────────────────────────────
+function GameScreen({ state, onFold, onCheck, onCall, onRaise, onUndo, onAward, onNext, onMenu, onPlayerTap, onCloseModal, onAbandon, onRebuy, onAddPlayer, onRemovePlayer }) {
+  const [raiseOpen, setRaiseOpen] = useState(false);
+  const [phaseFlash, setPhaseFlash] = useState(false);
+  const lastStreet = useRef(state.street);
+
+  useEffect(() => {
+    if (lastStreet.current !== state.street && (state.phase === 'game' || state.phase === 'showdown')) {
+      setPhaseFlash(true);
+      const t = setTimeout(() => setPhaseFlash(false), 1600);
+      lastStreet.current = state.street;
+      return () => clearTimeout(t);
+    }
+    lastStreet.current = state.street;
+  }, [state.street, state.phase]);
+
+  const turnPlayer = state.players[state.turnIdx];
+  const inHand = state.phase === 'game';
+  const totalPotDisplay = state.pot + state.players.reduce((s,p) => s + p.currentBet, 0);
+
+  const lvl = state.blindLevels[state.blindLevelIdx];
+  const blindLabel = lvl ? `${lvl.big}/${lvl.small}` : '';
+  const timeLabel = state.durationUnit === 'Minutes' && state.timeRemainingSec > 0
+    ? `${Math.floor(state.timeRemainingSec/60)}:${String(state.timeRemainingSec%60).padStart(2,'0')}`
+    : null;
+
+  const callAmount = inHand && turnPlayer ? Math.max(0, state.currentBet - turnPlayer.currentBet) : 0;
+  const canCheck = inHand && turnPlayer && callAmount === 0;
+  const canCall = inHand && turnPlayer && callAmount > 0;
+  const canRaise = inHand && turnPlayer && turnPlayer.balance > 0 && (turnPlayer.balance + turnPlayer.currentBet) > state.currentBet;
+
+  return (
+    <div className="h-[100dvh] w-screen overflow-hidden bg-zinc-950 flex flex-col text-white relative">
+      <header className="flex items-center justify-between px-3 py-2.5 border-b border-zinc-900 shrink-0 z-30 relative">
+        <button onClick={onUndo} disabled={!state.history?.length}
+          className="w-10 h-10 rounded-full flex items-center justify-center text-zinc-300 active:bg-zinc-800 disabled:text-zinc-700 disabled:active:bg-transparent">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/>
+          </svg>
+        </button>
+        <div className="flex flex-col items-center">
+          <div className="text-white font-bold text-base">{STREET_LABELS[state.street] || ''}</div>
+          {state.phase === 'showdown' && <div className="text-amber-300 text-xs font-bold">Select winners</div>}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="text-right">
+            <div className="text-amber-300 text-sm font-black tabular-nums leading-none">{blindLabel}</div>
+            {timeLabel
+              ? <div className="text-zinc-500 text-[10px] tabular-nums">{timeLabel}</div>
+              : <div className="text-zinc-500 text-[10px]">Lvl {state.blindLevelIdx+1}/{state.blindLevels.length}</div>}
+          </div>
+          <button onClick={onMenu} className="w-10 h-10 rounded-full flex items-center justify-center text-zinc-300 active:bg-zinc-800">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+              <line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <div className="flex-1 relative overflow-hidden px-2 py-2">
+        <PokerTable
+          state={state}
+          totalPot={totalPotDisplay}
+          onPlayerTap={onPlayerTap}
+        />
+
+        {phaseFlash && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+            <div className="phase-banner px-8 py-4 rounded-2xl anim-phase">
+              <div className="text-3xl font-black tracking-wider">{STREET_LABELS[state.street]}</div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="shrink-0 px-3 pt-2 pb-3 z-20 relative" style={{paddingBottom:'max(0.75rem, env(safe-area-inset-bottom))'}}>
+        {state.phase === 'showdown' ? (
+          <ShowdownPanel state={state} onAward={onAward}/>
+        ) : state.phase === 'handover' ? (
+          <HandoverPanel state={state} onNext={onNext}/>
+        ) : (
+          <ActionPanel
+            turnPlayer={turnPlayer} callAmount={callAmount}
+            canCheck={canCheck} canCall={canCall} canRaise={canRaise}
+            onFold={onFold} onCheck={onCheck} onCall={onCall}
+            onRaise={() => setRaiseOpen(true)}
+          />
+        )}
+      </div>
+
+      {raiseOpen && turnPlayer && (
+        <RaiseModal
+          state={state} player={turnPlayer}
+          onClose={() => setRaiseOpen(false)}
+          onConfirm={(amt) => { onRaise(amt); setRaiseOpen(false); }}
+        />
+      )}
+
+      {state.modal === 'menu' && (
+        <MenuModal
+          state={state}
+          onClose={onCloseModal}
+          onAbandon={onAbandon}
+          onAddPlayer={onAddPlayer}
+        />
+      )}
+
+      {state.modal?.type === 'manage' && (
+        <ManagePlayerModal
+          state={state}
+          playerId={state.modal.playerId}
+          onClose={onCloseModal}
+          onRebuy={onRebuy}
+          onRemovePlayer={onRemovePlayer}
+        />
+      )}
+
+      {state.phase === 'handover' && state.handoverData && (
+        <ConfettiBurst key={state.handsPlayed}/>
+      )}
+    </div>
+  );
+}
+
+// ─── Poker Table ─────────────────────────────────────────────────────────
+function PokerTable({ state, totalPot, onPlayerTap }) {
+  const players = state.players;
+  const numCards = STREET_CARDS[state.street] || 0;
+
+  return (
+    <div className="w-full h-full relative">
+      <div
+        className="absolute felt-rim rounded-[50%] p-2"
+        style={{aspectRatio:'0.78', maxHeight:'95%', maxWidth:'min(100%, 95vh)', left:'50%', top:'50%', transform:'translate(-50%, -50%)', width:'100%'}}
+      >
+        <div className="w-full h-full felt rounded-[50%] relative">
+          {/* center: cards + pot */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            {numCards > 0 && (
+              <div className="flex gap-1 mb-2" key={state.street}>
+                {Array.from({length: numCards}).map((_,i) => (
+                  <div key={i} className="card-back card-flip-in" style={{width:24, height:32, animationDelay: `${i*0.08}s`}}/>
+                ))}
+              </div>
+            )}
+            <div className="text-center" key={'pot-'+totalPot}>
+              <div className="text-emerald-200/70 text-[10px] uppercase tracking-widest font-bold">Pot</div>
+              <div className={`text-white text-3xl font-black tabular-nums leading-none mt-0.5 ${state.phase === 'handover' ? 'win-glow' : ''}`} style={{textShadow:'0 2px 4px rgba(0,0,0,0.6)'}}>
+                {fmt(totalPot)}
+              </div>
+            </div>
+          </div>
+
+          {players.map((p, i) => {
+            const n = players.length;
+            const angle = -Math.PI/2 + (i/n) * 2 * Math.PI;
+            const x = 50 + Math.cos(angle) * 56;
+            const y = 50 + Math.sin(angle) * 54;
+            const isWinner = state.phase === 'handover' && state.handoverData?.winnerIds?.includes(p.id);
+            const showdownWinnerIds = state.phase === 'handover' && state.handoverData?.awards
+              ? new Set(state.handoverData.awards.flat())
+              : new Set();
+            const isShowdownWinner = showdownWinnerIds.has(p.id);
+            return (
+              <PlayerSeat
+                key={p.id}
+                player={p} index={i} x={x} y={y} angle={angle}
+                isDealer={i === state.dealerIdx}
+                isSB={i === state.sbIdx}
+                isBB={i === state.bbIdx}
+                isTurn={i === state.turnIdx && state.phase === 'game'}
+                isWinner={isWinner || isShowdownWinner}
+                onTap={() => onPlayerTap(p.id)}
+              />
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlayerSeat({ player, x, y, angle, isDealer, isSB, isBB, isTurn, isWinner, onTap }) {
+  const tagColor = (a) => {
+    if (a === 'Fold') return 'bg-orange-500';
+    if (a === 'Bet' || a === 'Raise') return 'bg-blue-600';
+    if (a === 'Check') return 'bg-blue-500';
+    if (a === 'Call') return 'bg-emerald-600';
+    return null;
+  };
+  const tag = tagColor(player.lastAction);
+  const folded = player.hasFolded;
+  const bcx = 50 + Math.cos(angle) * 32;
+  const bcy = 50 + Math.sin(angle) * 30;
+  const tcx = 50 + Math.cos(angle) * 42;
+  const tcy = 50 + Math.sin(angle) * 41;
+
+  return (
+    <>
+      {/* Bet chip */}
+      {player.currentBet > 0 && (
+        <div className="absolute z-10 pointer-events-none anim-pop" style={{left: bcx+'%', top: bcy+'%', transform:'translate(-50%,-50%)'}} key={'bc-'+player.currentBet}>
+          <div className="flex items-center gap-1 bg-black/40 rounded-full pl-0.5 pr-2 py-0.5 backdrop-blur-sm">
+            <div className="w-4 h-4 rounded-full bet-chip"/>
+            <span className="text-white text-[11px] font-black tabular-nums">{fmt(player.currentBet)}</span>
+          </div>
+        </div>
+      )}
+
+      {/* D / SB / BB */}
+      {(isDealer || isSB || isBB) && (
+        <div className="absolute z-10 pointer-events-none" style={{left: tcx+'%', top: tcy+'%', transform:'translate(-50%,-50%)'}}>
+          {isDealer && <div className="dealer-btn w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black">D</div>}
+          {!isDealer && isSB && <div className="w-6 h-6 rounded-full bg-zinc-200 text-zinc-900 flex items-center justify-center text-[8px] font-black shadow">SB</div>}
+          {!isDealer && isBB && <div className="w-6 h-6 rounded-full bg-zinc-200 text-zinc-900 flex items-center justify-center text-[8px] font-black shadow">BB</div>}
+        </div>
+      )}
+
+      <div
+        className={`absolute z-20 transition-all duration-300 ${folded ? 'opacity-50 grayscale' : ''} ${isTurn ? 'scale-110 z-30' : ''}`}
+        style={{left: x+'%', top: y+'%', transform:'translate(-50%,-50%)', width:'82px'}}
+      >
+        {/* Spotlight */}
+        {isTurn && (
+          <div className="absolute" style={{inset:'-40%', pointerEvents:'none'}}>
+            <div className="spotlight"/>
+          </div>
+        )}
+
+        <button onClick={onTap} className="block w-full text-left relative">
+          <div className={`relative bg-zinc-900 rounded-lg overflow-hidden shadow-xl
+            ${isTurn ? 'active-turn' : isWinner ? 'ring-2 ring-amber-300' : 'border border-zinc-800'}
+            ${isWinner ? 'win-glow' : ''}`}>
+            {/* Inner gradient overlay */}
+            {isTurn && <div className="absolute inset-0 bg-gradient-to-b from-amber-300/15 to-transparent pointer-events-none"/>}
+            <div className="px-1.5 py-1 relative">
+              <div className="text-white text-[11px] font-bold leading-tight truncate text-center">{player.name}</div>
+              <div className={`text-sm font-black tabular-nums leading-tight text-center ${isWinner ? 'text-amber-300 win-glow' : 'text-amber-300'}`}>
+                {fmt(player.balance)}
+              </div>
+            </div>
+            {tag && !player.sittingOut && (
+              <div className={`${tag} text-white text-[10px] font-bold text-center py-0.5 leading-tight`}>
+                {player.lastAction}
+              </div>
+            )}
+            {player.isAllIn && !player.hasFolded && (
+              <div className="bg-purple-600 text-white text-[10px] font-bold text-center py-0.5 leading-tight">All In</div>
+            )}
+            {player.requestRemove ? (
+              <div className="bg-red-700 text-red-100 text-[10px] font-bold text-center py-0.5 leading-tight">Leaving</div>
+            ) : player.sittingOut && (
+              <div className="bg-zinc-700 text-zinc-300 text-[10px] font-bold text-center py-0.5 leading-tight">Out</div>
+            )}
+          </div>
+          {/* Turn arrow */}
+          {isTurn && (
+            <div className="absolute -top-3 left-1/2 turn-arrow" style={{transform:'translateX(-50%)'}}>
+              <div className="text-amber-300 text-2xl drop-shadow-lg" style={{filter:'drop-shadow(0 0 6px #fbbf24)'}}>▼</div>
+            </div>
+          )}
+        </button>
+      </div>
+    </>
+  );
+}
+
+// ─── Action Panel ────────────────────────────────────────────────────────
+function ActionPanel({ turnPlayer, callAmount, canCheck, canCall, canRaise, onFold, onCheck, onCall, onRaise }) {
+  if (!turnPlayer) return <div className="text-center text-zinc-500 py-8 text-sm">Waiting…</div>;
+  return (
+    <div className="flex items-center justify-between px-2 gap-3">
+      <div className="flex flex-col items-center">
+        <div className="bet-chip w-14 h-14 rounded-full flex items-center justify-center">
+          <span className="text-white text-base font-black tabular-nums" style={{textShadow:'0 1px 1px rgba(0,0,0,0.4)'}}>
+            {fmt(callAmount > 0 ? callAmount : turnPlayer.currentBet)}
+          </span>
+        </div>
+        <div className="text-zinc-500 text-[9px] font-bold uppercase tracking-wider mt-1">
+          {callAmount > 0 ? 'To call' : 'Bet'}
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        {canCheck ? (
+          <button onClick={onCheck} className="chip-btn chip-check w-[68px] h-[68px] flex items-center justify-center">
+            <span className="text-white font-black text-sm tracking-wide">Check</span>
+          </button>
+        ) : (
+          <button onClick={onCall} disabled={!canCall} className="chip-btn chip-call w-[68px] h-[68px] flex items-center justify-center">
+            <div className="flex flex-col items-center">
+              <span className="text-white font-black text-xs leading-none">Call</span>
+              <span className="text-white font-black text-xs tabular-nums leading-none mt-0.5">{fmt(callAmount)}</span>
+            </div>
+          </button>
+        )}
+        <button onClick={onRaise} disabled={!canRaise} className="chip-btn chip-raise w-[68px] h-[68px] flex items-center justify-center">
+          <span className="text-white font-black text-sm tracking-wide">Raise</span>
+        </button>
+        <button onClick={onFold} className="chip-btn chip-fold w-[68px] h-[68px] flex items-center justify-center">
+          <span className="text-white font-black text-sm tracking-wide">Fold</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Native Amount Input ──────────────────────────────────────────────────
+function Numpad({ value, min, max, onConfirm, onClose }) {
+  const inputRef = useRef(null);
+  const [draft, setDraft] = useState(String(Math.round(value || min || 0)));
+
+  useEffect(() => {
+    setDraft(String(Math.round(value || min || 0)));
+    const t = setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 80);
+    return () => clearTimeout(t);
+  }, [value, min]);
+
+  const sanitize = (v) => v.replace(/\D/g, '').slice(0, 10);
+  const setMin = () => setDraft(String(min));
+  const setMax = () => setDraft(String(max));
+  const numVal = parseInt(draft, 10) || 0;
+  const tooLow = numVal < min;
+  const tooHigh = numVal > max;
+  const valid = !tooLow && !tooHigh;
+  const confirm = () => {
+    if (!valid) return;
+    onConfirm(numVal);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-zinc-950/85 backdrop-blur-md flex items-start justify-center p-4 anim-fade"
+      style={{paddingTop:'max(4rem, env(safe-area-inset-top))', paddingBottom:'max(1rem, env(safe-area-inset-bottom))'}}>
+      <div className="absolute inset-0" onClick={onClose}/>
+      <div className="relative glass-strong w-full max-w-md rounded-3xl p-4 shadow-2xl">
+        <div className="flex items-center justify-between mb-3">
+          <div className="w-10"/>
+          <div className="text-white text-lg font-bold">Enter amount</div>
+          <button onClick={onClose} className="w-10 h-10 rounded-full bg-zinc-800 text-zinc-300 flex items-center justify-center font-bold">✕</button>
+        </div>
+
+        <div className={`rounded-2xl p-3 mb-3 transition ${tooLow || tooHigh ? 'bg-red-500' : 'bg-emerald-500'}`}>
+          <input
+            ref={inputRef}
+            type="text"
+            autoFocus
+            inputMode="numeric"
+            pattern="[0-9]*"
+            enterKeyHint="done"
+            value={draft}
+            onChange={e => setDraft(sanitize(e.target.value))}
+            onKeyDown={e => { if (e.key === 'Enter') confirm(); }}
+            onFocus={e => e.currentTarget.select()}
+            className="w-full bg-transparent text-white text-center text-5xl font-black tabular-nums focus:outline-none placeholder-white/50"
+            placeholder="0"
+            aria-label="Amount"
+          />
+          <div className="text-center text-white/85 text-xs mt-1 font-bold">
+            {tooLow ? `Min ${fmt(min)}` : tooHigh ? `Max ${fmt(max)}` : `Range ${fmt(min)} – ${fmt(max)}`}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <button onClick={setMin} className="btn-blue text-white py-3 rounded-xl font-bold">Min</button>
+          <button onClick={setMax} className="btn-blue text-white py-3 rounded-xl font-bold">Max</button>
+        </div>
+
+        <button onClick={confirm} disabled={!valid}
+          className={`w-full py-4 rounded-2xl font-black text-lg transition ${valid ? 'btn-primary text-white active:scale-[0.98]' : 'bg-zinc-800 text-zinc-600'}`}>
+          Set amount
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Raise Modal ─────────────────────────────────────────────────────────
+function RaiseModal({ state, player, onClose, onConfirm }) {
+  const callAmount = Math.max(0, state.currentBet - player.currentBet);
+  const minRaiseTotal = Math.min(player.balance + player.currentBet, state.currentBet + state.minRaiseAmount);
+  const maxBet = player.balance + player.currentBet;
+  const minBet = state.currentBet === 0
+    ? Math.min(state.blindLevels[state.blindLevelIdx]?.big || 1, maxBet)
+    : Math.min(maxBet, minRaiseTotal);
+
+  const potNow = state.pot + state.players.reduce((s,p) => s + p.currentBet, 0);
+  const potRaiseAmt = (frac) => {
+    const target = player.currentBet + callAmount + frac * (potNow + callAmount);
+    return Math.max(minBet, Math.min(maxBet, Math.round(target)));
+  };
+
+  const [amount, setAmount] = useState(minBet);
+  const [numpadOpen, setNumpadOpen] = useState(false);
+
+  const isOpen = state.currentBet === 0;
+  const valid = amount >= minBet && amount <= maxBet && amount > player.currentBet;
+  const tooLow = amount < minBet;
+
+  const setBounded = (v) => setAmount(Math.max(minBet, Math.min(maxBet, Math.round(v))));
+  const quick = (frac) => {
+    const v = potRaiseAmt(frac);
+    if (v >= minBet) setAmount(v);
+  };
+  const quickEnabled = (frac) => potRaiseAmt(frac) >= minBet && potRaiseAmt(frac) <= maxBet;
+
+  const fillPct = maxBet > minBet ? ((amount - minBet) / (maxBet - minBet)) * 100 : 50;
+
+  return (
+    <Modal onClose={onClose} fullscreen>
+      <div className="h-full w-full flex flex-col p-4 bg-zinc-950" style={{paddingBottom:'max(1rem, env(safe-area-inset-bottom))', paddingTop:'max(1rem, env(safe-area-inset-top))'}}>
+        <div className="flex items-center justify-between mb-3">
+          <div className="w-10"/>
+          <h3 className="text-white text-lg font-bold">{STREET_LABELS[state.street]}</h3>
+          <button onClick={onClose} className="w-10 h-10 rounded-full bg-zinc-800 text-zinc-300 flex items-center justify-center font-bold text-lg">✕</button>
+        </div>
+
+        {/* tappable big amount */}
+        <button onClick={() => setNumpadOpen(true)}
+          className={`rounded-2xl mb-2 py-5 px-4 transition shadow-xl active:scale-[0.99] ${tooLow ? 'bg-red-500' : 'bg-emerald-500'}`}>
+          <div className="flex items-center justify-center gap-2">
+            <div className="text-white text-center text-5xl font-black tabular-nums" style={{textShadow:'0 2px 4px rgba(0,0,0,0.3)'}}>
+              {fmt(amount)}
+            </div>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" className="opacity-70">
+              <rect x="3" y="6" width="18" height="14" rx="2"/>
+              <path d="M7 11h.01M11 11h.01M15 11h.01M7 15h.01M11 15h.01M15 15h.01"/>
+            </svg>
+          </div>
+          <div className="text-white/80 text-xs text-center font-bold mt-1">Tap to enter exact amount</div>
+        </button>
+
+        <div className="text-center mb-3 text-zinc-300 text-sm">
+          {isOpen ? <span className="text-emerald-300 font-bold">Open bet · Min {fmt(minBet)}</span>
+            : <>Call amount: <span className="text-amber-300 font-bold tabular-nums">{fmt(callAmount)}</span></>}
+        </div>
+
+        {/* slider */}
+        <div className="mb-3 px-2 py-3 glass rounded-2xl">
+          <input type="range" min={minBet} max={maxBet} value={amount}
+            onChange={e => setAmount(parseInt(e.target.value))}
+            className="w-full h-9"
+            style={{'--fill': fillPct + '%'}}/>
+          <div className="flex justify-between text-[10px] text-zinc-400 font-bold tabular-nums mt-1 px-1">
+            <span>{fmt(minBet)}</span><span>{fmt(maxBet)}</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <button onClick={() => setBounded(amount-1)} className="btn-blue active:scale-95 transition text-white py-3 rounded-xl font-black text-2xl">−</button>
+          <button onClick={() => setBounded(amount+1)} className="btn-blue active:scale-95 transition text-white py-3 rounded-xl font-black text-2xl">+</button>
+        </div>
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <button onClick={() => setAmount(minBet)} className="btn-blue active:scale-95 transition text-white py-3 rounded-xl font-bold">Min</button>
+          <button onClick={() => setAmount(maxBet)} className="btn-blue active:scale-95 transition text-white py-3 rounded-xl font-bold">Max</button>
+        </div>
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <button onClick={() => quick(1/3)} disabled={!quickEnabled(1/3)} className="btn-blue disabled:bg-zinc-800 disabled:text-zinc-600 active:scale-95 transition text-white py-3 rounded-xl font-bold">1/3</button>
+          <button onClick={() => quick(2/3)} disabled={!quickEnabled(2/3)} className="btn-blue disabled:bg-zinc-800 disabled:text-zinc-600 active:scale-95 transition text-white py-3 rounded-xl font-bold">2/3</button>
+        </div>
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <button onClick={() => quick(0.5)} disabled={!quickEnabled(0.5)} className="btn-blue disabled:bg-zinc-800 disabled:text-zinc-600 active:scale-95 transition text-white py-3 rounded-xl font-bold">1/2</button>
+          <button onClick={() => quick(1)} disabled={!quickEnabled(1)} className="btn-blue disabled:bg-zinc-800 disabled:text-zinc-600 active:scale-95 transition text-white py-3 rounded-xl font-bold">Pot</button>
+        </div>
+
+        <div className="flex-1"/>
+
+        <button onClick={() => onConfirm(amount)} disabled={!valid}
+          className={`w-full py-4 rounded-2xl font-black text-lg transition ${valid ? 'btn-red text-white active:scale-[0.98]' : 'bg-zinc-800 text-zinc-600'}`}>
+          {isOpen ? 'Bet' : 'Raise'} {fmt(amount)}
+        </button>
+
+        {numpadOpen && (
+          <Numpad
+            value={amount}
+            min={minBet}
+            max={maxBet}
+            onClose={() => setNumpadOpen(false)}
+            onConfirm={(v) => { setAmount(v); setNumpadOpen(false); }}
+          />
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+// ─── Manage Player Modal (Re-buy) ────────────────────────────────────────
+function ManagePlayerModal({ state, playerId, onClose, onRebuy, onRemovePlayer }) {
+  const player = state.players.find(p => p.id === playerId);
+  const [amount, setAmount] = useState(state.startingChips);
+  const [numpadOpen, setNumpadOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
+  if (!player) return null;
+
+  const liveHand = state.phase === 'game' || state.phase === 'showdown';
+  const rebuyWaitsNextHand = liveHand && player.sittingOut;
+  const removeWaitsNextHand = liveHand;
+
+  const presets = [
+    Math.round(state.startingChips * 0.5),
+    state.startingChips,
+    state.startingChips * 2,
+  ];
+
+  const doRebuy = () => {
+    if (amount > 0) {
+      onRebuy(playerId, amount);
+      setConfirming(false);
+    }
+  };
+
+  const doRemove = () => {
+    onRemovePlayer(playerId);
+    setConfirmingRemove(false);
+  };
+
+  return (
+    <Modal onClose={onClose}>
+      <div className="text-center mb-4">
+        <div className={`mx-auto w-14 h-14 rounded-full bg-gradient-to-br ${PG[player.colorIdx]} flex items-center justify-center text-white font-black text-xl shadow-lg mb-2`}>
+          {player.name[0]?.toUpperCase()}
+        </div>
+        <div className="text-white text-xl font-bold">{player.name}</div>
+        <div className="text-zinc-400 text-xs mt-1">
+          Balance: <span className="text-amber-300 font-bold tabular-nums">{fmt(player.balance)}</span>
+          <span className="mx-1.5 text-zinc-700">·</span>
+          Buy-ins: <span className="text-white font-bold">{player.buyIns || 1}</span>
+        </div>
+        {player.requestRemove && (
+          <div className="mt-2 rounded-xl bg-red-500/15 border border-red-400/30 px-3 py-2 text-center text-[11px] font-bold text-red-200">
+            This player is marked to leave after the current hand.
+          </div>
+        )}
+      </div>
+
+      {confirmingRemove ? (
+        <div className="anim-fade">
+          <div className="text-center text-zinc-300 text-sm mb-3">
+            Remove <span className="text-white font-bold">{player.name}</span> from the table?
+            {removeWaitsNextHand && <div className="text-amber-300 text-xs font-bold mt-2">Current hand will not be broken. They will leave before the next hand.</div>}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => setConfirmingRemove(false)} className="py-3 rounded-2xl btn-dark text-zinc-200 font-bold">Cancel</button>
+            <button onClick={doRemove} className="py-3 rounded-2xl btn-red text-white font-black">Remove</button>
+          </div>
+        </div>
+      ) : !confirming ? (
+        <>
+          <div className="glass rounded-2xl p-3 mb-3">
+            <div className="text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2 text-center">Add chips / Re-buy</div>
+            {rebuyWaitsNextHand && (
+              <div className="mb-2 rounded-xl bg-amber-500/15 border border-amber-400/30 px-3 py-2 text-center text-[11px] font-bold text-amber-200">
+                This player gets chips now, but stays out until the next hand.
+              </div>
+            )}
+            <button onClick={() => setNumpadOpen(true)}
+              className="w-full bg-emerald-500 active:bg-emerald-600 active:scale-[0.99] transition rounded-xl py-3 px-4 mb-2">
+              <div className="text-white text-3xl font-black tabular-nums">+{fmt(amount)}</div>
+              <div className="text-white/80 text-[10px] font-bold mt-0.5">Tap to edit</div>
+            </button>
+            <div className="grid grid-cols-3 gap-1.5">
+              {presets.map(p => (
+                <button key={p} onClick={() => setAmount(p)}
+                  className={`py-2 rounded-lg text-xs font-bold transition ${amount === p ? 'bg-emerald-500 text-white' : 'btn-dark text-zinc-300'}`}>
+                  +{fmt(p)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            onClick={() => setConfirmingRemove(true)}
+            disabled={player.requestRemove}
+            className="w-full py-3 rounded-2xl bg-red-500/15 border border-red-500/30 text-red-300 font-bold active:scale-95 disabled:opacity-40 mb-2"
+          >
+            {removeWaitsNextHand ? 'Remove after hand' : 'Remove from table'}
+          </button>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={onClose} className="py-3 rounded-2xl btn-dark text-zinc-200 font-bold">Cancel</button>
+            <button onClick={() => setConfirming(true)} disabled={amount <= 0}
+              className="py-3 rounded-2xl btn-primary text-white font-black disabled:opacity-40">
+              Re-buy
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="anim-fade">
+          <div className="text-center text-zinc-300 text-sm mb-3">
+            Add <span className="text-emerald-300 font-black tabular-nums">{fmt(amount)}</span> chips to <span className="text-white font-bold">{player.name}</span>?
+            {rebuyWaitsNextHand && <div className="text-amber-300 text-xs font-bold mt-2">They will not enter this hand.</div>}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => setConfirming(false)} className="py-3 rounded-2xl btn-dark text-zinc-200 font-bold">Cancel</button>
+            <button onClick={doRebuy} className="py-3 rounded-2xl btn-primary text-white font-black">Confirm</button>
+          </div>
+        </div>
+      )}
+
+      {numpadOpen && (
+        <Numpad
+          value={amount}
+          min={1}
+          max={1000000000}
+          onClose={() => setNumpadOpen(false)}
+          onConfirm={(v) => { setAmount(v); setNumpadOpen(false); }}
+        />
+      )}
+    </Modal>
+  );
+}
+
+// ─── Showdown ────────────────────────────────────────────────────────────
+function ShowdownPanel({ state, onAward }) {
+  const pots = state.showdownData?.pots || [];
+  const [awards, setAwards] = useState(() => pots.map(() => []));
+  const playersById = useMemo(() => Object.fromEntries(state.players.map(p => [p.id, p])), [state.players]);
+
+  const togglePotWinner = (potIdx, playerId) => {
+    setAwards(a => a.map((ids, i) => {
+      if (i !== potIdx) return ids;
+      return ids.includes(playerId) ? ids.filter(id => id !== playerId) : [...ids, playerId];
+    }));
+  };
+  const allSelected = pots.every((_, i) => awards[i] && awards[i].length > 0);
+
+  return (
+    <div className="glass-strong rounded-2xl max-h-[55vh] overflow-y-auto">
+      <div className="px-4 py-3 border-b border-zinc-800 sticky top-0 bg-zinc-900/95 backdrop-blur z-10">
+        <div className="text-center text-white font-bold">Showdown</div>
+        <div className="text-center text-zinc-400 text-xs">Select pot winner(s)</div>
+      </div>
+      <div className="p-3 space-y-3">
+        {pots.map((pot, i) => {
+          const eligible = pot.eligibleIds.map(id => playersById[id]).filter(Boolean);
+          const sel = awards[i] || [];
+          const each = sel.length > 0 ? Math.floor(pot.amount / sel.length) : 0;
+          return (
+            <div key={i}>
+              <div className="text-white font-bold text-sm mb-1.5">
+                {i === 0 ? 'Main pot' : `Side pot ${i}`}: <span className="text-amber-300 tabular-nums">{fmt(pot.amount)}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {eligible.map(p => {
+                  const isSel = sel.includes(p.id);
+                  return (
+                    <button key={p.id} onClick={() => togglePotWinner(i, p.id)}
+                      className={`px-2 py-2 rounded-xl font-bold text-sm transition border-2 flex items-center justify-between ${isSel ? 'btn-blue border-blue-300 text-white' : 'bg-zinc-800/60 border-transparent text-zinc-300'}`}>
+                      <span className="truncate flex-1 text-left">{p.name}</span>
+                      {isSel && <span className="text-[10px] tabular-nums shrink-0 ml-1">+{fmt(each)}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="text-zinc-500 text-[11px] mt-1 text-center">{sel.length}/{eligible.length} selected</div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="p-3 border-t border-zinc-800">
+        <button onClick={() => onAward(awards)} disabled={!allSelected}
+          className={`w-full py-3 rounded-2xl font-black transition ${allSelected ? 'btn-primary text-white active:scale-[0.98]' : 'bg-zinc-800 text-zinc-600'}`}>
+          Award & Next hand
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Handover ────────────────────────────────────────────────────────────
+function HandoverPanel({ state, onNext }) {
+  const winner = state.handoverData?.winnerIds?.[0]
+    ? state.players.find(p => p.id === state.handoverData.winnerIds[0])
+    : null;
+  const totals = {};
+  if (state.handoverData?.reason === 'showdown' && state.handoverData.awards) {
+    state.handoverData.awards.forEach((winners, i) => {
+      const pot = state.handoverData.pots[i];
+      const ids = winners.length > 0 ? winners : pot.eligibleIds;
+      const each = Math.floor(pot.amount / ids.length);
+      ids.forEach((id, k) => {
+        totals[id] = (totals[id] || 0) + each + (k === 0 ? pot.amount - each * ids.length : 0);
+      });
+    });
+  }
+
+  return (
+    <div className="glass-strong rounded-2xl p-4 anim-slide">
+      {state.handoverData?.reason === 'fold' && winner && (
+        <div className="text-center mb-3">
+          <div className="text-zinc-400 text-xs uppercase tracking-wider font-bold mb-1">Hand won by</div>
+          <div className="text-white text-xl font-black">{winner.name}</div>
+          <div className="text-amber-300 text-3xl font-black tabular-nums mt-1 win-glow">+{fmt(state.handoverData.amount)}</div>
+        </div>
+      )}
+      {state.handoverData?.reason === 'showdown' && (
+        <div className="mb-3">
+          <div className="text-zinc-400 text-xs uppercase tracking-wider font-bold mb-2 text-center">Pot awarded</div>
+          <div className="space-y-1">
+            {Object.entries(totals).map(([id, amt]) => {
+              const p = state.players.find(x => x.id === id);
+              if (!p) return null;
+              return (
+                <div key={id} className="flex justify-between bg-zinc-800/60 rounded-xl px-3 py-2">
+                  <span className="text-white font-bold">{p.name}</span>
+                  <span className="text-amber-300 font-black tabular-nums win-glow">+{fmt(amt)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      <button onClick={onNext} className="w-full py-3 rounded-2xl font-black btn-primary text-white active:scale-[0.98]">
+        Next hand
+      </button>
+    </div>
+  );
+}
+
+// ─── Confetti ────────────────────────────────────────────────────────────
+function ConfettiBurst() {
+  const pieces = useMemo(() => {
+    return Array.from({length: 60}).map(() => ({
+      cx: (Math.random() * 200 - 100) + 'vw',  // start x offset relative to center
+      cdx: (Math.random() * 80 - 40) + 'vw',
+      crot: (Math.random() * 720 - 360) + 'deg',
+      cdur: (1.8 + Math.random() * 1.6) + 's',
+      delay: Math.random() * 0.4 + 's',
+      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+      width: (6 + Math.random() * 8) + 'px',
+      height: (10 + Math.random() * 8) + 'px',
+    }));
+  }, []);
+  return (
+    <div className="fixed inset-0 pointer-events-none z-40 overflow-hidden">
+      {pieces.map((p, i) => (
+        <div
+          key={i}
+          className="confetti-piece"
+          style={{
+            background: p.color,
+            width: p.width, height: p.height,
+            animationDelay: p.delay,
+            '--cx': p.cx,
+            '--cdx': p.cdx,
+            '--crot': p.crot,
+            '--cdur': p.cdur,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── Game Over ───────────────────────────────────────────────────────────
+function GameOver({ state, onReset }) {
+  const sorted = [...state.players].sort((a,b) => b.balance - a.balance);
+  const winner = sorted[0];
+  return (
+    <div className="h-[100dvh] w-screen bg-zinc-950 flex flex-col items-center justify-center px-6 text-white relative overflow-hidden">
+      <ConfettiBurst/>
+      <div className="text-6xl mb-4 anim-pop">🏆</div>
+      <h1 className="text-3xl font-black mb-1 win-glow text-amber-300">Game Over</h1>
+      <p className="text-zinc-400 mb-6">{winner?.name} wins!</p>
+      <div className="w-full max-w-sm glass rounded-2xl p-4 mb-6 space-y-2">
+        {sorted.map((p,i) => (
+          <div key={p.id} className="flex items-center gap-3">
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black ${i===0?'bg-yellow-400 text-zinc-900':'bg-zinc-700 text-zinc-300'}`}>{i+1}</div>
+            <div className="flex-1 text-white font-bold">{p.name}</div>
+            <div className="text-zinc-500 text-xs">×{p.buyIns || 1}</div>
+            <div className="text-amber-300 font-black tabular-nums">{fmt(p.balance)}</div>
+          </div>
+        ))}
+      </div>
+      <button onClick={onReset} className="w-full max-w-sm py-4 rounded-2xl btn-primary text-white font-black text-lg active:scale-[0.98]">
+        New Game
+      </button>
+    </div>
+  );
+}
+
+// ─── Menu Modal ──────────────────────────────────────────────────────────
+function MenuModal({ state, onClose, onAbandon, onAddPlayer }) {
+  const [confirm, setConfirm] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newAmount, setNewAmount] = useState(state.startingChips);
+  const [amountOpen, setAmountOpen] = useState(false);
+  const sorted = [...state.players].sort((a,b) => b.balance - a.balance);
+  const lvl = state.blindLevels[state.blindLevelIdx];
+  const activePlayerCount = state.players.filter(p => !p.requestRemove).length;
+  const nameTaken = state.players.some(p => p.name.trim().toLowerCase() === newName.trim().toLowerCase());
+  const canAdd = state.players.length < 9 && newName.trim().length > 0 && !nameTaken;
+  const joinsNextHand = state.phase === 'game' || state.phase === 'showdown' || state.phase === 'handover';
+
+  const doAdd = () => {
+    if (!canAdd) return;
+    onAddPlayer(newName, newAmount);
+  };
+
+  return (
+    <Modal onClose={onClose}>
+      <div className="text-center mb-3">
+        <div className="text-zinc-500 text-[10px] uppercase tracking-widest font-bold">Game</div>
+        <div className="text-white text-xl font-bold">Hand #{state.handsPlayed}</div>
+        {lvl && <div className="text-zinc-400 text-xs">Blinds {lvl.big}/{lvl.small} · Level {state.blindLevelIdx+1}/{state.blindLevels.length}</div>}
+      </div>
+
+      {!confirm && (
+        <div className="glass rounded-2xl p-3 mb-3">
+          {!adding ? (
+            <button onClick={() => setAdding(true)} disabled={state.players.length >= 9}
+              className="w-full py-3 rounded-2xl btn-blue text-white font-black disabled:opacity-40">
+              + Add player
+            </button>
+          ) : (
+            <div className="space-y-2 anim-fade">
+              <input
+                value={newName}
+                onChange={e => setNewName(e.target.value.slice(0, 14))}
+                onKeyDown={e => e.key === 'Enter' && doAdd()}
+                autoFocus
+                placeholder={`Player ${activePlayerCount + 1}`}
+                className="w-full bg-zinc-800/80 rounded-xl px-4 py-3 text-white focus:outline-none border border-zinc-700"
+                maxLength={14}
+                autoCapitalize="words"
+              />
+              <button onClick={() => setAmountOpen(true)} className="w-full bg-emerald-500 active:bg-emerald-600 active:scale-[0.99] transition rounded-xl py-3 px-4">
+                <div className="text-white text-2xl font-black tabular-nums">{fmt(newAmount)}</div>
+                <div className="text-white/80 text-[10px] font-bold mt-0.5">Buy-in amount · tap to edit</div>
+              </button>
+              {joinsNextHand && (
+                <div className="rounded-xl bg-amber-500/15 border border-amber-400/30 px-3 py-2 text-center text-[11px] font-bold text-amber-200">
+                  New player will join from the next hand.
+                </div>
+              )}
+              {nameTaken && <div className="text-red-300 text-xs font-bold text-center">This name is already on the table.</div>}
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => { setAdding(false); setNewName(''); }} className="py-3 rounded-2xl btn-dark text-zinc-200 font-bold">Cancel</button>
+                <button onClick={doAdd} disabled={!canAdd} className="py-3 rounded-2xl btn-primary text-white font-black disabled:opacity-40">Add</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="space-y-1.5 mb-4 max-h-72 overflow-y-auto">
+        {sorted.map((p, i) => (
+          <div key={p.id} className="flex items-center gap-2 bg-zinc-800/60 rounded-xl px-2 py-1.5">
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black ${i===0?'bg-yellow-400 text-zinc-900':'bg-zinc-700 text-zinc-300'}`}>{i+1}</div>
+            <div className="flex-1 min-w-0">
+              <div className="text-white font-bold text-sm truncate">{p.name}</div>
+              {p.requestRemove && <div className="text-red-300 text-[10px] font-bold leading-tight">Leaving after hand</div>}
+            </div>
+            <div className="text-zinc-500 text-[10px]">×{p.buyIns || 1}</div>
+            <div className="text-amber-300 font-black tabular-nums text-sm">{fmt(p.balance)}</div>
+          </div>
+        ))}
+      </div>
+      {!confirm ? (
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={onClose} className="py-3 rounded-2xl btn-dark text-zinc-200 font-bold">Close</button>
+          <button onClick={() => setConfirm(true)} className="py-3 rounded-2xl bg-red-500/15 border border-red-500/30 text-red-300 font-bold active:scale-95">End Game</button>
+        </div>
+      ) : (
+        <div className="space-y-2 anim-fade">
+          <div className="text-center text-zinc-300 text-sm py-1">End game and return to setup?</div>
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => setConfirm(false)} className="py-3 rounded-2xl btn-dark text-zinc-200 font-bold">Cancel</button>
+            <button onClick={onAbandon} className="py-3 rounded-2xl btn-red text-white font-black">End</button>
+          </div>
+        </div>
+      )}
+
+      {amountOpen && (
+        <Numpad
+          value={newAmount}
+          min={1}
+          max={1000000000}
+          onClose={() => setAmountOpen(false)}
+          onConfirm={(v) => { setNewAmount(v); setAmountOpen(false); }}
+        />
+      )}
+    </Modal>
+  );
+}
+
+// ─── Generic Modal ───────────────────────────────────────────────────────
+function Modal({ children, onClose, fullscreen }) {
+  useEffect(() => {
+    const onEsc = (e) => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', onEsc);
+    return () => document.removeEventListener('keydown', onEsc);
+  }, [onClose]);
+  if (fullscreen) return <div className="fixed inset-0 z-50 anim-fade">{children}</div>;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center anim-fade">
+      <div className="absolute inset-0 bg-black/75 backdrop-blur-md" onClick={onClose}/>
+      <div className="relative glass-strong w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-4 max-h-[90vh] overflow-y-auto anim-slide" style={{paddingBottom:'max(1rem, env(safe-area-inset-bottom))'}}>
+        <div className="w-12 h-1.5 bg-zinc-700 rounded-full mx-auto mb-3 sm:hidden"/>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
